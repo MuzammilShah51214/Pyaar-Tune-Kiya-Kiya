@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sukoon - Premium Player</title>
+    <style>
+        :root {
+            --pink: #ff416c;
+            --dark-bg: #000;
+            --card-bg: #1a1a1a;
+            --header-height: 250px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--dark-bg); color: white; overflow-x: hidden; text-align: center; }
+
+        header {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            height: var(--header-height);
+            z-index: 1000;
+            background: #000;
+            border-bottom: 3px solid var(--pink);
+            overflow: hidden;
+        }
+
+        .poster-img { 
+            width: 100%; height: 180px; object-fit: cover; 
+            display: block; opacity: 0.6;
+        }
+
+        .header-overlay {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: #000;
+            padding: 15px;
+        }
+
+        .header-overlay h1 { font-size: 1rem; letter-spacing: 2px; text-transform: uppercase; }
+        .header-overlay p { font-size: 13px; color: var(--pink); font-weight: bold; }
+
+        .container { 
+            padding: 15px; max-width: 1100px; 
+            margin: calc(var(--header-height) + 20px) auto 0 auto; 
+        }
+
+        .section-title {
+            font-size: 22px; font-weight: bold;
+            border-left: 4px solid var(--pink);
+            padding-left: 12px; margin: 25px 0; text-align: left;
+        }
+
+        .episode-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .ep-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            opacity: 0; 
+            animation: fadeInUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            border: 1px solid #222;
+            transition: 0.3s;
+        }
+        .ep-card:hover { border-color: var(--pink); transform: translateY(-5px); }
+
+        .ep-upper { width: 100%; aspect-ratio: 16/9; overflow: hidden; background: #222; }
+        .ep-upper img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        .ep-lower {
+            background: #111; padding: 12px;
+            text-align: center; border-top: 1px solid #222;
+        }
+        .ep-lower h3 { color: var(--pink); font-size: 13px; text-transform: uppercase; }
+
+        /* --- Player Controls --- */
+        .player-box {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 10001;
+            align-items: center; justify-content: center;
+        }
+        .player-content { width: 100%; max-width: 900px; position: relative; background: #000; }
+        
+        /* Fullscreen adjustment */
+        .player-content:fullscreen { max-width: 100%; width: 100%; height: 100%; display: flex; align-items: center; }
+
+        #youtube-player { width: 100%; aspect-ratio: 16/9; display: block; pointer-events: none; }
+        .yt-blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+        
+        .controls-layer { 
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+            display: flex; flex-direction: column; justify-content: space-between; 
+            padding: 20px; opacity: 0; transition: opacity 0.5s ease; 
+            z-index: 10; pointer-events: none; 
+        }
+        .show-controls .controls-layer { opacity: 1; pointer-events: auto; }
+        
+        .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .close-btn { background: rgba(255, 65, 108, 0.3); border: 1px solid var(--pink); color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; }
+        
+        .bottom-ui { background: rgba(0,0,0,0.7); padding: 15px; border-radius: 15px; width: 100%; backdrop-filter: blur(5px); }
+        .p-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.2); cursor: pointer; border-radius: 10px; margin-bottom: 12px; position: relative; }
+        .p-fill { height: 100%; background: var(--pink); width: 0%; border-radius: 10px; box-shadow: 0 0 10px var(--pink); }
+        
+        .controls-row { display: flex; justify-content: space-between; align-items: center; }
+        .left-group { display: flex; align-items: center; gap: 15px; }
+        .icon-btn { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+        .v-time { font-size: 13px; font-family: monospace; color: #eee; }
+        
+        .ctrl-select { background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--pink); padding: 4px 8px; border-radius: 15px; font-size: 11px; }
+        .footer { margin: 40px 0; padding: 20px; color: #555; font-size: 12px; }
+
+        @media (min-width: 768px) { 
+            .episode-grid { grid-template-columns: repeat(4, 1fr); }
+            :root { --header-height: 350px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <img src="https://i.pinimg.com/736x/13/49/f5/1349f53973351d3a28f7a4861a512f45.jpg" class="poster-img" alt="Series Poster">
+        <div class="header-overlay">
+            <h1>Pyaar Tune Kiya Kiya S4</h1>
+            <p>Zing TV Serial</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2 class="section-title">Select Episode</h2>
+        <div class="episode-grid" id="episodeGrid"></div>
+        <div class="footer">Powered By: 🩷~𝑺𝒚𝒆𝒅 𝑴𝒖𝒛𝒂𝒎𝒎𝒊𝒍 𝑺𝒉𝒂𝒉~🩷</div>
+    </div>
+
+    <div class="player-box" id="playerBox">
+        <div class="player-content" id="playerArea">
+            <div id="youtube-player"></div>
+            <div class="yt-blocker" onclick="handleTap()"></div>
+            
+            <div class="controls-layer">
+                <div class="top-row">
+                    <button class="close-btn" onclick="closePlayer()">✕</button>
+                    <div style="display:flex; gap:10px;">
+                        <select class="ctrl-select" id="qualitySelect" onchange="changeQuality()">
+                            <option value="default">Quality</option>
+                            <option value="hd1080">1080p</option>
+                            <option value="hd720">720p</option>
+                            <option value="medium">360p</option>
+                        </select>
+                        <select class="ctrl-select" id="speedSelect" onchange="changeSpeed()">
+                            <option value="1">1.0x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bottom-ui">
+                    <div class="p-bar" id="progressBar" onclick="seek(event)">
+                        <div class="p-fill" id="pFill"></div>
+                    </div>
+                    <div class="controls-row">
+                        <div class="left-group">
+                            <button class="icon-btn" onclick="prevEp()">⏮</button>
+                            <button class="icon-btn" onclick="playPause()" id="playIcon">⏸</button>
+                            <button class="icon-btn" onclick="nextEp()">⏭</button>
+                            <span class="v-time"><span id="currTime">0:00</span> / <span id="totalTime">0:00</span></span>
+                        </div>
+                        <button class="icon-btn" onclick="toggleFS()">⛶</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const EPISODES = [
+    
+  {
+    id: "zMwlT2UBFT8",
+    title: "Episode 1 - College Love",
+    thumbnail: "https://i.ytimg.com/vi/zMwlT2UBFT8/maxresdefault.jpg",
+    story: "Vrinda Dawda, Aditya Singh Rajput"
+  },
+  {
+    id: "Qj0lvQ8_Ic4",
+    title: "Episode 2 - Love Story Mein Twist?",
+    thumbnail: "https://i.ytimg.com/vi/Qj0lvQ8_Ic4/maxresdefault.jpg",
+    story: "Fenil Umrigar, Yuvraj Thakur"
+  },
+  {
+    id: "jKQ45XN4Q9Q",
+    title: "Episode 3 - Live In Relationship",
+    thumbnail: "https://i.ytimg.com/vi/jKQ45XN4Q9Q/maxresdefault.jpg",
+    story: "Charu Mehra, Harsh Rajput"
+  },
+  {
+    id: "3tHLcdPU224",
+    title: "Episode 4 - Ek Pyaar Jo Sab Kuch Badal Dala",
+    thumbnail: "https://i.ytimg.com/vi/3tHLcdPU224/sddefault.jpg",
+    story: "Sunny Leone"
+  },
+  {
+    id: "rPc9z1d28wQ",
+    title: "Episode 5 - Jab Qismat Ne Saat Choda...",
+    thumbnail: "https://i.ytimg.com/vi/rPc9z1d28wQ/sddefault.jpg",
+    story: "Parth Samthaan"
+  },
+  {
+    id: "l2NXtNufdKk",
+    title: "Episode 6 - Office Love",
+    thumbnail: "https://i.ytimg.com/vi/l2NXtNufdKk/maxresdefault.jpg",
+    story: "Subuhi Joshi, Nishant"
+  },
+  {
+    id: "LDyAbT1Bzmw",
+    title: "Episode 7 - Love Triangle",
+    thumbnail: "https://i.ytimg.com/vi/LDyAbT1Bzmw/maxresdefault.jpg",
+    story: "Jasmine Avasia, Sehban Azim"
+  },
+  {
+    id: "EvpocEH4op8",
+    title: "Episode 8 - Saumya vs Varun in Love?",
+    thumbnail: "https://i.ytimg.com/vi/EvpocEH4op8/maxresdefault.jpg",
+    story: "Fahad Ali, Neelam"
+  },
+  {
+    id: "jewZPG1qM8I",
+    title: "Episode 9 - Ek Dhandewaali Se Pyaar?? Kaise?",
+    thumbnail: "https://i.ytimg.com/vi/jewZPG1qM8I/sddefault.jpg",
+    story: "Chetna Pande"
+  },
+  {
+    id: "ojKc_3yP9aM",
+    title: "Episode 10 - A Heart-Touching Love Story",
+    thumbnail: "https://i.ytimg.com/vi/ojKc_3yP9aM/sddefault.jpg",
+    story: "Vrushika Mehta"
+  },
+  {
+    id: "mBo0HHrkc1Q",
+    title: "Episode 12 - Dharmendra Deol & Gippy Grewal",
+    thumbnail: "https://i.ytimg.com/vi/mBo0HHrkc1Q/hqdefault.jpg",
+    story: "Mohena"
+  },
+  {
+    id: "gS2MV207h4o",
+    title: "Episode 13 - Love, Lust & Friendship",
+    thumbnail: "https://i.ytimg.com/vi/gS2MV207h4o/maxresdefault.jpg",
+    story: "Kanchi Singh"
+  },
+];
+
+
+
+
+
+        let player, currentIdx = 0, hideTimeout;
+
+        function renderEpisodeButtons() {
+            const grid = document.getElementById('episodeGrid');
+            grid.innerHTML = ''; 
+            EPISODES.forEach((ep, i) => {
+                const card = document.createElement('div');
+                card.className = 'ep-card';
+                card.style.animationDelay = (i * 0.1) + 's';
+                card.onclick = () => openPlayer(i);
+                card.innerHTML = `
+                    <div class="ep-upper">
+                        <img src="${ep.thumbnail}" alt="${ep.title}" loading="lazy">
+                    </div>
+                    <div class="ep-lower">
+                        <h3>${ep.title}</h3>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        window.onload = () => {
+            renderEpisodeButtons();
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(tag);
+        };
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                playerVars: { 
+                    'controls': 0, 
+                    'modestbranding': 1, 
+                    'rel': 0, 
+                    'disablekb': 1, 
+                    'iv_load_policy': 3,
+                    'playsinline': 1
+                },
+                events: { 'onStateChange': onStateChange }
+            });
+            setInterval(updateProgress, 500);
+        }
+
+        function openPlayer(i) {
+            currentIdx = i;
+            document.getElementById('playerBox').style.display = 'flex';
+            if (player && player.loadVideoById) {
+                player.loadVideoById(EPISODES[i].id);
+            }
+            showControls();
+        }
+
+        function handleTap() {
+            const area = document.getElementById('playerArea');
+            area.classList.contains('show-controls') ? hideControls() : showControls();
+        }
+
+        function showControls() {
+            const area = document.getElementById('playerArea');
+            area.classList.add('show-controls');
+            clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => {
+                if (player && player.getPlayerState() === 1) hideControls();
+            }, 4000);
+        }
+
+        function hideControls() {
+            document.getElementById('playerArea').classList.remove('show-controls');
+        }
+
+        function onStateChange(event) {
+            document.getElementById('playIcon').innerText = (event.data === 1) ? '⏸' : '▶';
+            showControls();
+            if (event.data === 0) nextEp();
+        }
+
+        function playPause() {
+            if (player.getPlayerState() === 1) {
+                player.pauseVideo();
+            } else {
+                player.playVideo();
+            }
+            showControls();
+        }
+
+        function updateProgress() {
+            if (player && player.getCurrentTime && player.getDuration) {
+                try {
+                    const curr = player.getCurrentTime();
+                    const dur = player.getDuration();
+                    if (dur > 0) {
+                        const percent = (curr / dur) * 100;
+                        document.getElementById('pFill').style.width = percent + '%';
+                        document.getElementById('currTime').innerText = formatTime(curr);
+                        document.getElementById('totalTime').innerText = formatTime(dur);
+                    }
+                } catch (e) {}
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return mins + ":" + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function seek(e) {
+            if (!player || !player.getDuration) return;
+            const rect = document.getElementById('progressBar').getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const percent = Math.max(0, Math.min(1, clickX / rect.width));
+            const seekTime = percent * player.getDuration();
+            player.seekTo(seekTime, true);
+            showControls();
+        }
+
+        function changeSpeed() {
+            const speed = parseFloat(document.getElementById('speedSelect').value);
+            player.setPlaybackRate(speed);
+        }
+
+        function changeQuality() {
+            const quality = document.getElementById('qualitySelect').value;
+            player.setPlaybackQuality(quality);
+        }
+
+        function closePlayer() {
+            document.getElementById('playerBox').style.display = 'none';
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            if (player && player.stopVideo) {
+                player.stopVideo();
+            }
+        }
+
+        function nextEp() {
+            if (currentIdx < EPISODES.length - 1) {
+                openPlayer(currentIdx + 1);
+            }
+        }
+
+        function prevEp() {
+            if (currentIdx > 0) {
+                openPlayer(currentIdx - 1);
+            }
+        }
+
+        async function toggleFS() {
+            const el = document.getElementById('playerArea');
+            if (!document.fullscreenElement) {
+                try {
+                    if (el.requestFullscreen) {
+                        await el.requestFullscreen();
+                    } else if (el.webkitRequestFullscreen) {
+                        await el.webkitRequestFullscreen();
+                    }
+                    
+                    if (screen.orientation && screen.orientation.lock) {
+                        try {
+                            await screen.orientation.lock('landscape');
+                        } catch (e) {}
+                    }
+                } catch (e) {
+                    console.log("Fullscreen error:", e);
+                }
+            } else {
+                document.exitFullscreen();
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            }
+        }
+
+        // Fullscreen change event listener
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement && player) {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (!document.getElementById('playerBox').style.display || 
+                document.getElementById('playerBox').style.display === 'none') {
+                return;
+            }
+            
+            switch(e.key) {
+                case ' ':
+                case 'k':
+                    e.preventDefault();
+                    playPause();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    player.seekTo(player.getCurrentTime() + 10, true);
+                    showControls();
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    player.seekTo(player.getCurrentTime() - 10, true);
+                    showControls();
+                    break;
+                case 'f':
+                    e.preventDefault();
+                    toggleFS();
+                    break;
+                case 'Escape':
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
